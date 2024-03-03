@@ -6,4 +6,11 @@
     <string name="create_dialog_surname">Surname…</string>
     <string name="create_dialog_name">Name…</string>
     <string name="create_dialog_phone">+7 (777) 777–77–77…</string>
+    <string name="dialog_button_cancel">Cancel</string>
+    <string name="dialog_button_ok">OK</string>
+    <string name="dialog_title_new_info">Please, enter new info:</string>
+    <string name="dialog_title_info">Please, enter info:</string>
+    <string name="action_bar_title">Contacts</string>
+    <string name="input_info_rotate_warning">Please, do not rotate the phone while input info.</string>
+    <string name="max_count_contact_warning">No more than 100.</string>
 </resources>

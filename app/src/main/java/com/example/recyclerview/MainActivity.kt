@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
-        supportActionBar?.title = "Contacts"
+        supportActionBar?.title = getString(R.string.action_bar_title)
 
         recycler = findViewById(R.id.recycler)
         recycler.layoutManager = LinearLayoutManager(this)
@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
                 isDeleting = true
             } else refreshScreen(isDeleting = false, isOnCreate = true)
             if(savedInstanceState.getBoolean("isDialogShowing")) {
-                Toast.makeText(this, "Please, do not rotate the phone while input info.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.input_info_rotate_warning), Toast.LENGTH_LONG).show()
                 isDialogShowing = false
             }
         } else refreshScreen(isDeleting = false, isOnCreate = true)
@@ -90,7 +90,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.create_button).setOnClickListener {
             if (compositeAdapter.itemCount < 100) {
                 showInputInfoDialog()
-            } else Toast.makeText(this, "No more than 100.", Toast.LENGTH_SHORT).show()
+            } else Toast.makeText(this,
+                getString(R.string.max_count_contact_warning), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -131,26 +132,26 @@ class MainActivity : AppCompatActivity() {
         val inflater = layoutInflater
         val dialogLayout = inflater.inflate(R.layout.input_info_dialog, null)
 
-        val etSurname = dialogLayout.findViewById<EditText>(R.id.create_dialog_surname)
-        val etName = dialogLayout.findViewById<EditText>(R.id.create_dialog_name)
-        val etPhone = dialogLayout.findViewById<EditText>(R.id.create_dialog_phone)
+        val editTextSurname = dialogLayout.findViewById<EditText>(R.id.create_dialog_surname)
+        val editTextName = dialogLayout.findViewById<EditText>(R.id.create_dialog_name)
+        val editTextPhone = dialogLayout.findViewById<EditText>(R.id.create_dialog_phone)
 
         if (currentContact != null) {
-            etSurname.hint = currentContact.contactSurname
-            etName.hint = currentContact.contactName
-            etPhone.hint = currentContact.contactPhone
+            editTextSurname.hint = currentContact.contactSurname
+            editTextName.hint = currentContact.contactName
+            editTextPhone.hint = currentContact.contactPhone
         }
 
         with(builder) {
-            setTitle(if (currentContact != null) "Please, enter new info:" else "Please, enter info:")
-            setPositiveButton("Ok") { _, _ ->
-                val newContact = ContactModel(-1, etName.text.toString(), etSurname.text.toString(), etPhone.text.toString())
+            setTitle(if (currentContact != null) getString(R.string.dialog_title_new_info) else getString(R.string.dialog_title_info))
+            setPositiveButton(getString(R.string.dialog_button_ok)) { _, _ ->
+                val newContact = ContactModel(-1, editTextName.text.toString(), editTextSurname.text.toString(), editTextPhone.text.toString())
                 if(currentContact != null)
                     editContact(newContact.copy(contactId = currentContact.contactId))
                 else addNewContact(newContact)
                 isDialogShowing = false
             }
-            setNegativeButton("Cancel") { _, _ -> isDialogShowing = false }
+            setNegativeButton(getString(R.string.dialog_button_cancel)) { _, _ -> isDialogShowing = false }
             setView(dialogLayout)
             show()
         }
