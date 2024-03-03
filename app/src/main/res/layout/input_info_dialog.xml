@@ -8,32 +8,32 @@
         android:id="@+id/create_dialog_surname"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/create_dialog_surname"
-        android:textSize="16sp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="8dp"
         android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp" />
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="8dp"
+        android:hint="@string/create_dialog_surname"
+        android:textSize="16sp" />
 
     <EditText
         android:id="@+id/create_dialog_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/create_dialog_name"
-        android:textSize="16sp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
         android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp" />
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="8dp"
+        android:hint="@string/create_dialog_name"
+        android:textSize="16sp" />
 
     <EditText
         android:id="@+id/create_dialog_phone"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/create_dialog_phone"
-        android:textSize="16sp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="16dp"
         android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp" />
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="16dp"
+        android:hint="@string/create_dialog_phone"
+        android:textSize="16sp" />
 </LinearLayout>

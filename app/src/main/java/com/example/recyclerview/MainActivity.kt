@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Button
-import android.widget.TextView
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -15,160 +15,83 @@ import androidx.recyclerview.widget.ItemTouchHelper.UP
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.recyclerview.RecyclerViewApplication.Companion.appContactList
-import com.example.recyclerview.recycler.ContactAdapter
+import com.example.recyclerview.delegate.CompositeAdapter
+import com.example.recyclerview.delegate.DelegateAdapterItem
+import com.example.recyclerview.recycler.ContactDelegateAdapter
 import com.example.recyclerview.recycler.ContactModel
 
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var adapter: ContactAdapter
     private lateinit var recycler: RecyclerView
+    private val compositeAdapter by lazy {
+        CompositeAdapter.Builder()
+            .add(ContactDelegateAdapter { showInputInfoDialog(it) })
+            .build()
+    }
     private val itemTouchHelper by lazy {
-        val itemTouchCallback = object: ItemTouchHelper.SimpleCallback(UP or DOWN, 0) {
+        val itemTouchCallback = object : ItemTouchHelper.SimpleCallback(UP or DOWN, 0) {
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
                 target: RecyclerView.ViewHolder
             ): Boolean {
-                adapter.moveItem(viewHolder.adapterPosition, target.adapterPosition)
+                compositeAdapter.moveItem(viewHolder.adapterPosition, target.adapterPosition)
                 return true
             }
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) { }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
             override fun isLongPressDragEnabled(): Boolean = true
         }
         ItemTouchHelper(itemTouchCallback)
     }
-    private var isDeleting = false
+
     private lateinit var menu: Menu
+
+    private var isDeleting = false
+    private var isDialogShowing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        supportActionBar?.title = "Contacts"
+
         recycler = findViewById(R.id.recycler)
         recycler.layoutManager = LinearLayoutManager(this)
         itemTouchHelper.attachToRecyclerView(recycler)
 
-        adapter = ContactAdapter { showEditDialog(it) }
-        adapter.submitList(appContactList)
-        recycler.adapter = adapter
+        recycler.adapter = compositeAdapter
+        compositeAdapter.submitList(appContactList as List<DelegateAdapterItem>)
 
-        if(savedInstanceState?.getIntegerArrayList("adapterDeleteList") != null)
-            adapter.deleteList = savedInstanceState.getIntegerArrayList("adapterDeleteList")!!
-
-        supportActionBar?.setDisplayHomeAsUpEnabled(false)
-        supportActionBar?.title = "Contacts"
-
-        findViewById<Button>(R.id.cancel_button).isVisible = false
-        findViewById<RecyclerView>(R.id.confirm_button).isVisible = false
-
-        if(savedInstanceState?.getBoolean("isDeleting") == true) {
-            refreshScreen(isDeleting = true, isRestoreState = true)
-            isDeleting = true
-        }
+        if (savedInstanceState != null) {
+            compositeAdapter.getDeletingExtension().deleteList = savedInstanceState.getIntegerArrayList("adapterDeleteList")!!
+            if (savedInstanceState.getBoolean("isDeleting")) {
+                refreshScreen(isDeleting = true, isOnCreate = true)
+                isDeleting = true
+            } else refreshScreen(isDeleting = false, isOnCreate = true)
+            if(savedInstanceState.getBoolean("isDialogShowing")) {
+                Toast.makeText(this, "Please, do not rotate the phone while input info.", Toast.LENGTH_LONG).show()
+                isDialogShowing = false
+            }
+        } else refreshScreen(isDeleting = false, isOnCreate = true)
 
         findViewById<Button>(R.id.cancel_button).setOnClickListener {
             refreshScreen(isDeleting = false)
         }
 
         findViewById<Button>(R.id.confirm_button).setOnClickListener {
-            adapter.submitList(adapter.currentList.toMutableList().filterNot { adapter.deleteList.contains(it.contactId) })
+            compositeAdapter.submitList(compositeAdapter.currentList.toMutableList()
+                .filterNot { compositeAdapter.getDeletingExtension().deleteList.contains(it.id()) })
             refreshScreen(isDeleting = false)
         }
 
         findViewById<Button>(R.id.create_button).setOnClickListener {
-            if(adapter.itemCount < 100) {
-                showCreateDialog()
+            if (compositeAdapter.itemCount < 100) {
+                showInputInfoDialog()
             } else Toast.makeText(this, "No more than 100.", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun refreshScreen(isDeleting: Boolean, isRestoreState: Boolean = false) {
-        findViewById<Button>(R.id.cancel_button).isVisible = isDeleting
-        findViewById<Button>(R.id.confirm_button).isVisible = isDeleting
-        findViewById<Button>(R.id.create_button).isVisible = !isDeleting
-        if(!isRestoreState)
-            menu.findItem(R.id.delete_button).isVisible = !isDeleting
-
-        adapter.setIsDeleting(isDeleting)
-        if(!isDeleting)
-            adapter.deleteList.clear()
-        adapter.notifyItemRangeChanged(0, adapter.itemCount)
-    }
-
-    private fun showCreateDialog() {
-        val builder = AlertDialog.Builder(this)
-        val inflater = layoutInflater
-        val dialogLayout = inflater.inflate(R.layout.create_dialog_layout, null)
-        val etSurname = dialogLayout.findViewById<TextView>(R.id.create_dialog_surname)
-        val etName = dialogLayout.findViewById<TextView>(R.id.create_dialog_name)
-        val etPhone = dialogLayout.findViewById<TextView>(R.id.create_dialog_phone)
-
-        with(builder) {
-            setTitle("Please, enter info:")
-            setPositiveButton("Ok") { _, _ ->
-                addNewContact(
-                    ContactModel(
-                        -1,
-                        etName.text.toString(),
-                        etSurname.text.toString(),
-                        etPhone.text.toString()
-                    )
-                )
-            }
-            setNegativeButton("Cancel") { _, _ -> }
-            setView(dialogLayout)
-            show()
-        }
-    }
-
-    private fun addNewContact(newContact: ContactModel) {
-        val intRange = mutableListOf<Int>()
-        repeat(100) { intRange.add(it + 1) }
-        adapter.currentList.forEach { intRange.remove(it.contactId) }
-        adapter.submitList(adapter.currentList.toMutableList().also {
-            it.add(intRange.first() - 1, newContact.copy(contactId = intRange.first()))
-        })
-        adapter.notifyItemRangeChanged(intRange.first() - 1, adapter.itemCount)
-    }
-
-    private fun showEditDialog(currentContact: ContactModel) {
-        val builder = AlertDialog.Builder(this)
-        val inflater = layoutInflater
-        val dialogLayout = inflater.inflate(R.layout.create_dialog_layout, null)
-        val etSurname = dialogLayout.findViewById<TextView>(R.id.create_dialog_surname)
-        val etName = dialogLayout.findViewById<TextView>(R.id.create_dialog_name)
-        val etPhone = dialogLayout.findViewById<TextView>(R.id.create_dialog_phone)
-
-        etSurname.hint = currentContact.contactSurname
-        etName.hint = currentContact.contactName
-        etPhone.hint = currentContact.contactPhone
-
-        with(builder) {
-            setTitle("Please, enter new info:")
-            setPositiveButton("Ok") { _, _ ->
-                editContact(
-                    ContactModel(
-                        currentContact.contactId,
-                        etName.text.toString(),
-                        etSurname.text.toString(),
-                        etPhone.text.toString()
-                    )
-                )
-            }
-            setNegativeButton("Cancel") { _, _ -> }
-            setView(dialogLayout)
-            show()
-        }
-    }
-
-    private fun editContact(newContact: ContactModel) {
-        val index = adapter.currentList.indexOfFirst { it.contactId == newContact.contactId }
-        adapter.submitList(
-            adapter.currentList.toMutableList().also {
-            it[index] = newContact
-        })
-        adapter.notifyItemChanged(index)
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -177,10 +100,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
-        if(isDeleting)
-            menu?.findItem(R.id.delete_button)?.isVisible = false
-        if(menu != null)
+        if (menu != null)
             this.menu = menu
+        if (isDeleting)
+            menu?.findItem(R.id.delete_button)?.isVisible = false
         return true
     }
 
@@ -190,10 +113,73 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    private fun refreshScreen(isDeleting: Boolean, isOnCreate: Boolean = false) {
+        findViewById<Button>(R.id.cancel_button).isVisible = isDeleting
+        findViewById<Button>(R.id.confirm_button).isVisible = isDeleting
+        findViewById<Button>(R.id.create_button).isVisible = !isDeleting
+        if (!isOnCreate)
+            menu.findItem(R.id.delete_button).isVisible = !isDeleting
+
+        compositeAdapter.getDeletingExtension().setIsDeleting(isDeleting)
+        if (!isDeleting)
+            compositeAdapter.getDeletingExtension().deleteList.clear()
+        compositeAdapter.notifyItemRangeChanged(0, compositeAdapter.itemCount)
+    }
+
+    private fun showInputInfoDialog(currentContact: ContactModel? = null) {
+        val builder = AlertDialog.Builder(this)
+        val inflater = layoutInflater
+        val dialogLayout = inflater.inflate(R.layout.input_info_dialog, null)
+
+        val etSurname = dialogLayout.findViewById<EditText>(R.id.create_dialog_surname)
+        val etName = dialogLayout.findViewById<EditText>(R.id.create_dialog_name)
+        val etPhone = dialogLayout.findViewById<EditText>(R.id.create_dialog_phone)
+
+        if (currentContact != null) {
+            etSurname.hint = currentContact.contactSurname
+            etName.hint = currentContact.contactName
+            etPhone.hint = currentContact.contactPhone
+        }
+
+        with(builder) {
+            setTitle(if (currentContact != null) "Please, enter new info:" else "Please, enter info:")
+            setPositiveButton("Ok") { _, _ ->
+                val newContact = ContactModel(-1, etName.text.toString(), etSurname.text.toString(), etPhone.text.toString())
+                if(currentContact != null)
+                    editContact(newContact.copy(contactId = currentContact.contactId))
+                else addNewContact(newContact)
+                isDialogShowing = false
+            }
+            setNegativeButton("Cancel") { _, _ -> isDialogShowing = false }
+            setView(dialogLayout)
+            show()
+        }
+        isDialogShowing = true
+    }
+
+    private fun addNewContact(newContact: ContactModel) {
+        val intRange = (1..100).toMutableList()
+        compositeAdapter.currentList.forEach { intRange.remove(it.id()) }
+        compositeAdapter.submitList(compositeAdapter.currentList.toMutableList().also {
+            it.add(intRange.first() - 1, newContact.copy(contactId = intRange.first()))
+        })
+        compositeAdapter.notifyItemRangeChanged(intRange.first() - 1, compositeAdapter.itemCount)
+    }
+
+    private fun editContact(newContact: ContactModel) {
+        val index = compositeAdapter.currentList.indexOfFirst { it.id() == newContact.contactId }
+        compositeAdapter.submitList(
+            compositeAdapter.currentList.toMutableList().also {
+                it[index] = newContact
+            })
+        compositeAdapter.notifyItemChanged(index)
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean("isDeleting", adapter.getIsDeleting())
-        outState.putIntegerArrayList("adapterDeleteList", ArrayList<Int>(adapter.deleteList))
-        appContactList = adapter.currentList
+        outState.putBoolean("isDeleting", compositeAdapter.getDeletingExtension().getIsDeleting())
+        outState.putBoolean("isDialogShowing", isDialogShowing)
+        outState.putIntegerArrayList("adapterDeleteList", ArrayList<Int>(compositeAdapter.getDeletingExtension().deleteList))
+        appContactList = compositeAdapter.currentList as MutableList<ContactModel>
     }
 }
